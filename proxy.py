@@ -307,8 +307,8 @@ async def _send_result_email(email: str, result: dict, refund: float, you_keep: 
     reason = result.get("reason", "")
     app_url = os.environ.get("FRONTEND_URL", "https://flightclaim-production.up.railway.app/")
 
-    if not refund or refund <= 0:
-        print(f"EMAIL TASK SKIPPED: refund was {refund}")
+    if refund is None:
+        print(f"EMAIL TASK SKIPPED: refund was None")
         return
 
     html = f"""
