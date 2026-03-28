@@ -7,6 +7,8 @@ RUN pip install -r requirements-proxy.txt
 
 COPY proxy.py .
 COPY flightclaim-demo.html .
+COPY terms.html .
+COPY privacy.html .
 
 EXPOSE 8000
 
