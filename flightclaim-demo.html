@@ -966,7 +966,7 @@ function renderActions(r) {
 /* ─── Interactions ─────────────────────────────────────────── */
 function showForm(refund, airline) {
   // Store refund/airline for submitClaim
-  window._claimRefund  = refund;
+  window._claimRefund  = (refund != null && refund !== 0) ? refund : null;
   window._claimAirline = airline;
   const b = document.getElementById('formBlock');
   if (!b) return;
@@ -1042,7 +1042,7 @@ async function submitClaim(e) {
   try {
     await fetch('/capture-email', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, estimated_refund: refund || 0, airline: airline || '', source: 'claim_form' })
+      body: JSON.stringify({ email, estimated_refund: refund || null, airline: airline || '', source: 'claim_form' })
     });
   } catch(e) {}
 }
