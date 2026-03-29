@@ -894,14 +894,14 @@ function renderActions(r, pct) {
 function claimFormHTML(refund, airSafe) {
   return `<div class="form-b" id="formBlock">
     <div class="form-email-step">
-      <input class="fi fw" id="fEmail" type="email" placeholder="Your email address" onblur="revealNameStep()" onkeydown="if(event.key==='Enter'){event.preventDefault();revealNameStep();}">
+      <input class="fi fw" id="fEmail" type="email" placeholder="Your email address" oninput="maybeRevealName()">
     </div>
-    <div class="form-name-step" id="nameStep">
+    <div class="form-name-step" id="nameStep" style="display:none">
       <div class="form-r">
         <input class="fi" id="fName" placeholder="First name">
         <input class="fi" id="fName2" placeholder="Last name">
       </div>
-      <div class="consent-block" id="consentBlock">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin:10px 0">
         <input type="checkbox" id="consentBox" style="margin-top:3px;flex-shrink:0;accent-color:var(--green)">
         <div>
           <div class="consent-summary">
@@ -931,13 +931,15 @@ function capRowHTML(refund, airSafe) {
   </div>`;
 }
 
-/* ─── Progressive form reveal ───────────────────── */
-function revealNameStep() {
-  const email = document.getElementById('fEmail')?.value?.trim();
+function maybeRevealName() {
+  const email = document.getElementById('fEmail')?.value?.trim() || '';
+  // Only reveal when email looks complete: has @ and at least one dot after it
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]{1,}$/.test(email);
   const nameStep = document.getElementById('nameStep');
-  if (email && email.includes('@') && nameStep) {
-    nameStep.classList.add('on');
-    document.getElementById('consentBlock')?.classList.add('on');
+  if (!nameStep) return;
+  if (valid && nameStep.style.display === 'none') {
+    nameStep.style.display = 'block';
+    nameStep.style.animation = 'up .2s ease both';
     setTimeout(() => document.getElementById('fName')?.focus(), 80);
   }
 }
@@ -1004,9 +1006,9 @@ async function sendCapture(data) {
     ...data,
     session_id: _sessionId,
     confidence_score: r.confidence_score || null,
-    eligible: r.eligible || false,
+    eligible: r.eligible ?? null,
     flight_number: r.flight_number || null,
-    accepted_rebooking: _acceptedRebooking,
+    accepted_rebooking: _acceptedRebooking || null,
     result_state,
   };
   try {
