@@ -238,26 +238,18 @@ async def analyze_email(request: AnalyzeRequest, http_request: Request):
 # ── 2. EMAIL CAPTURE ──────────────────────────────────────────────────────────
 
 @app.post("/capture-email")
-async def capture_email(request: Request):
-    body = await request.json()
-    print(f"CAPTURE EMAIL BODY: {body}")
-    try:
-        parsed = EmailCaptureRequest(**body)
-    except Exception as ex:
-        print(f"CAPTURE EMAIL VALIDATION ERROR: {ex}")
-        raise HTTPException(422, str(ex))
+async def capture_email(data: EmailCaptureRequest):
     """Non-converter email capture. Your retargeting list."""
     capture = {
-        "email": request.email,
-        "estimated_refund": request.estimated_refund,
-        "airline": request.airline,
-        "session_id": request.session_id,
+        "email": data.email,
+        "estimated_refund": data.estimated_refund,
+        "airline": data.airline,
+        "session_id": data.session_id,
         "captured_at": datetime.now().isoformat(),
     }
     email_captures.append(capture)
     print(json.dumps({"event": "email_captured", **capture}))
 
-    # Save to Supabase if connected
     if os.environ.get("SUPABASE_URL"):
         try:
             from supabase import create_client
