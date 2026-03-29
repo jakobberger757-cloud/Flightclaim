@@ -894,7 +894,17 @@ function renderActions(r, pct) {
 function claimFormHTML(refund, airSafe) {
   return `<div class="form-b" id="formBlock">
     <div style="display:flex;gap:8px;margin-bottom:8px">
-      <input class="fi" id="fEmail" type="email" placeholder="Your email address" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();revealNameStep();}">
+      <input
+        class="fi"
+        id="fEmail"
+        type="email"
+        placeholder="Your email address"
+        style="flex:1"
+        autocomplete="email"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        inputmode="email">
       <button class="act-sec" style="white-space:nowrap;flex-shrink:0;padding:10px 14px" onclick="revealNameStep()">Continue →</button>
     </div>
     <div id="nameStep" style="display:none">
@@ -933,15 +943,31 @@ function capRowHTML(refund, airSafe) {
 }
 
 function revealNameStep() {
-  const email = document.getElementById('fEmail')?.value?.trim() || '';
-  if (!email.includes('@') || !email.includes('.')) {
-    document.getElementById('fEmail')?.focus();
+  const emailInput = document.getElementById('fEmail');
+  const email = emailInput?.value?.trim() || '';
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+
+  if (!emailOk) {
+    if (emailInput) {
+      emailInput.focus();
+      emailInput.setAttribute('aria-invalid', 'true');
+      emailInput.style.borderColor = 'var(--red)';
+    }
     return;
   }
+
+  if (emailInput) {
+    emailInput.removeAttribute('aria-invalid');
+    emailInput.style.borderColor = '';
+  }
+
   const nameStep = document.getElementById('nameStep');
   if (!nameStep) return;
+
   nameStep.style.display = 'block';
   nameStep.style.animation = 'up .2s ease both';
+
   setTimeout(() => document.getElementById('fName')?.focus(), 80);
 }
 
