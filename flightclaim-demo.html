@@ -1043,7 +1043,7 @@ async function submitClaim(e) {
   try {
     await fetch('/capture-email', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, source: 'claim_form' })
+      body: JSON.stringify({ email, estimated_refund: window._claimRefund || 0, airline: window._claimAirline || '', source: 'claim_form' })
     });
   } catch(e) {}
 }
