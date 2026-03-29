@@ -65,7 +65,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
   <p>If you provide a phone number, we may send claim status updates via SMS. You can opt out at any time by replying STOP.</p>
 
   <h3>Payment information</h3>
-  <p>If we recover a refund for you, we collect payment information through Stripe to charge our 20% success fee. We do not store your full card number — payment processing is handled entirely by Stripe.</p>
+  <p>If we recover a refund for you, we will collect payment information to charge our 20% success fee. Payment processing will be handled by a third-party processor. No fee is charged unless a refund is recovered on your behalf.</p>
 
   <h3>Usage data</h3>
   <p>We log IP addresses, request timestamps, and basic usage data (such as whether a claim was eligible, which airline was involved) for rate limiting, fraud prevention, and service improvement. We do not link this data to personally identifiable information unless you have submitted a claim.</p>
@@ -79,9 +79,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
     <tbody>
       <tr><td><strong>Anthropic</strong></td><td>AI-powered email analysis</td><td>Full email text you paste for analysis</td></tr>
       <tr><td><strong>Supabase</strong></td><td>Database and user storage</td><td>Name, email, claim details</td></tr>
-      <tr><td><strong>Stripe</strong></td><td>Payment processing</td><td>Payment card details (processed by Stripe directly)</td></tr>
-      <tr><td><strong>Twilio</strong></td><td>SMS notifications</td><td>Phone number, claim status messages</td></tr>
-      <tr><td><strong>SendGrid</strong></td><td>Email delivery</td><td>Email address, result and status emails</td></tr>
+      <tr><td><strong>Payment processor</strong></td><td>Payment processing (when applicable)</td><td>Payment card details (processed by third-party directly)</td></tr>
+      <tr><td><strong>Resend</strong></td><td>Email delivery</td><td>Email address, result and status emails</td></tr>
     </tbody>
   </table>
 
