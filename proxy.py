@@ -134,6 +134,13 @@ class EmailCaptureRequest(BaseModel):
     airline: Optional[str] = None
     session_id: Optional[str] = None
     source: Optional[str] = None
+    confidence_score: Optional[float] = None
+    eligible: Optional[bool] = None
+    flight_number: Optional[str] = None
+    accepted_rebooking: Optional[bool] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    result_state: Optional[str] = None
 
 
 class EmailResultRequest(BaseModel):
@@ -245,6 +252,14 @@ async def capture_email(data: EmailCaptureRequest):
         "estimated_refund": data.estimated_refund,
         "airline": data.airline,
         "session_id": data.session_id,
+        "source": data.source,
+        "confidence_score": data.confidence_score,
+        "eligible": data.eligible,
+        "flight_number": data.flight_number,
+        "accepted_rebooking": data.accepted_rebooking,
+        "first_name": data.first_name,
+        "last_name": data.last_name,
+        "result_state": data.result_state,
         "captured_at": datetime.now().isoformat(),
     }
     email_captures.append(capture)
@@ -272,7 +287,7 @@ async def get_captures(key: str = ""):
 
     return {
         "count": len(email_captures),
-        "potential_revenue": round(sum(c["estimated_refund"] * 0.20 for c in email_captures), 2),
+        "potential_revenue": round(sum((c.get("estimated_refund") or 0) * 0.20 for c in email_captures), 2),
         "captures": email_captures,
     }
 
