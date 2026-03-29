@@ -238,7 +238,14 @@ async def analyze_email(request: AnalyzeRequest, http_request: Request):
 # ── 2. EMAIL CAPTURE ──────────────────────────────────────────────────────────
 
 @app.post("/capture-email")
-async def capture_email(request: EmailCaptureRequest):
+async def capture_email(request: Request):
+    body = await request.json()
+    print(f"CAPTURE EMAIL BODY: {body}")
+    try:
+        parsed = EmailCaptureRequest(**body)
+    except Exception as ex:
+        print(f"CAPTURE EMAIL VALIDATION ERROR: {ex}")
+        raise HTTPException(422, str(ex))
     """Non-converter email capture. Your retargeting list."""
     capture = {
         "email": request.email,
