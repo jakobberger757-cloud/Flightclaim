@@ -130,7 +130,7 @@ class AnalyzeRequest(BaseModel):
 
 class EmailCaptureRequest(BaseModel):
     email: EmailStr
-    estimated_refund: float
+    estimated_refund: Optional[float] = None
     airline: Optional[str] = None
     session_id: Optional[str] = None
     source: Optional[str] = None
