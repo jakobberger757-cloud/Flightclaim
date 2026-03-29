@@ -894,7 +894,7 @@ function renderActions(r, pct) {
 function claimFormHTML(refund, airSafe) {
   return `<div class="form-b" id="formBlock">
     <div class="form-email-step">
-      <input class="fi fw" id="fEmail" type="email" placeholder="Your email address" oninput="revealNameStep()">
+      <input class="fi fw" id="fEmail" type="email" placeholder="Your email address" onblur="revealNameStep()" onkeydown="if(event.key==='Enter'){event.preventDefault();revealNameStep();}">
     </div>
     <div class="form-name-step" id="nameStep">
       <div class="form-r">
@@ -1047,6 +1047,15 @@ function resetForNewFlight() {
 async function emailMePrompt(refund, airline) {
   const email = prompt("Enter your email — we'll send you this result:");
   if (!email?.includes('@')) return;
+
+  // Capture to Supabase
+  await sendCapture({
+    email,
+    estimated_refund: refund || null,
+    airline: airline || null,
+    source: 'email_me_result',
+  });
+
   const why = document.getElementById('whyText')?.textContent || '';
   const reg = document.getElementById('regPill')?.textContent || '';
   try {
