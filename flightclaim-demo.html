@@ -909,8 +909,8 @@ function claimFormHTML(refund, airSafe) {
     </div>
     <div id="nameStep" style="display:none">
       <div class="form-r">
-        <input class="fi" id="fName" placeholder="First name">
-        <input class="fi" id="fName2" placeholder="Last name">
+        <input class="fi" id="fName" placeholder="First name" tabindex="-1" autocomplete="given-name">
+        <input class="fi" id="fName2" placeholder="Last name" tabindex="-1" autocomplete="family-name">
       </div>
       <div style="display:flex;align-items:flex-start;gap:10px;margin:10px 0">
         <input type="checkbox" id="consentBox" style="margin-top:3px;flex-shrink:0;accent-color:var(--green)">
@@ -967,6 +967,10 @@ function revealNameStep() {
 
   nameStep.style.display = 'block';
   nameStep.style.animation = 'up .2s ease both';
+
+  // Restore tabindex so fields are now reachable
+  document.getElementById('fName').removeAttribute('tabindex');
+  document.getElementById('fName2').removeAttribute('tabindex');
 
   setTimeout(() => document.getElementById('fName')?.focus(), 80);
 }
