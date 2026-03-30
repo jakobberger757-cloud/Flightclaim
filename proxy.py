@@ -439,8 +439,8 @@ async def inbound_email(request: Request):
         data_obj  = payload.get("data", payload)
         sender    = data_obj.get("from", "") or payload.get("from", "")
         subject   = data_obj.get("subject", "") or payload.get("subject", "") or "(no subject)"
-        text_body = data_obj.get("text", "") or payload.get("text", "") or ""
-        html_body = data_obj.get("html", "") or payload.get("html", "") or ""
+        text_body = data_obj.get("text", "") or data_obj.get("plain_text", "") or payload.get("text", "") or ""
+        html_body = data_obj.get("html", "") or data_obj.get("html_text", "") or payload.get("html", "") or ""
         to_addr   = data_obj.get("to", "") or payload.get("to", "")
 
         print(json.dumps({
@@ -449,6 +449,7 @@ async def inbound_email(request: Request):
             "subject": subject,
             "body_length": len(text_body),
             "raw_keys": list(payload.keys()),
+            "data_keys": list(data_obj.keys()) if isinstance(data_obj, dict) else [],
             "timestamp": datetime.now().isoformat(),
         }))
 
