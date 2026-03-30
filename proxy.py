@@ -444,21 +444,25 @@ async def inbound_email(request: Request):
         email_body = ""
         if email_id:
             try:
-                import httpx
                 api_key = os.environ.get("RESEND_API_KEY", "")
+                import httpx
                 resp = httpx.get(
                     f"https://api.resend.com/v1/received-emails/{email_id}",
-                    headers={"Authorization": f"Bearer {api_key}"},
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
                     timeout=10,
                 )
+                print(json.dumps({
+                    "event": "inbound_fetch_response",
+                    "status": resp.status_code,
+                    "body_preview": resp.text[:500],
+                    "timestamp": datetime.now().isoformat(),
+                }))
                 if resp.status_code == 200:
                     email_data = resp.json()
-                    print(json.dumps({
-                        "event": "inbound_email_fetched_keys",
-                        "keys": list(email_data.keys()),
-                        "timestamp": datetime.now().isoformat(),
-                    }))
-                    email_body = email_data.get("text", "") or email_data.get("html", "") or email_data.get("plain_text", "") or ""
+                    email_body = email_data.get("text", "") or email_data.get("html", "") or ""
                     email_body = email_body.strip()
                     print(json.dumps({
                         "event": "inbound_email_fetched",
@@ -466,8 +470,6 @@ async def inbound_email(request: Request):
                         "body_length": len(email_body),
                         "timestamp": datetime.now().isoformat(),
                     }))
-                else:
-                    print(f"Resend fetch failed: {resp.status_code} {resp.text}")
             except Exception as e:
                 print(f"Resend fetch error: {e}")
 
