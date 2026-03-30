@@ -1116,6 +1116,7 @@ async function submitClaim() {
   const fn      = document.getElementById('fName')?.value?.trim();
   const ln      = document.getElementById('fName2')?.value?.trim();
   const consent = document.getElementById('consentBox')?.checked;
+  const originalEmailText = document.getElementById('emailInput')?.value?.trim() || null;
 
   if (!email?.includes('@')) { alert('Please enter a valid email address.'); return; }
   if (!fn || !ln) { alert('Please enter your first and last name.'); return; }
@@ -1158,7 +1159,8 @@ async function submitClaim() {
         first_name: fn,
         last_name: ln,
         result_state,
-      })
+          original_email_text: originalEmailText,
+        })
     });
   } catch(e) {}
 }

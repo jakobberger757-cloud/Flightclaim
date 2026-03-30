@@ -141,6 +141,8 @@ class EmailCaptureRequest(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     result_state: Optional[str] = None
+    original_email_text: Optional[str] = None
+    subject_line: Optional[str] = None
 
 
 class EmailResultRequest(BaseModel):
@@ -260,10 +262,39 @@ async def capture_email(data: EmailCaptureRequest):
         "first_name": data.first_name,
         "last_name": data.last_name,
         "result_state": data.result_state,
+        "original_email_text": data.original_email_text,
+        "subject_line": data.subject_line,
         "captured_at": datetime.now().isoformat(),
     }
     email_captures.append(capture)
     print(json.dumps({"event": "email_captured", **capture}))
+
+    if data.source == "claim_form_submitted":
+        try:
+            operator_html = f"""
+            <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px">
+              <h2 style="color:#18a362">New claim submitted</h2>
+              <table style="width:100%;border-collapse:collapse;font-size:14px">
+                <tr><td style="padding:8px 0;color:#666;width:140px">Name</td><td style="padding:8px 0;font-weight:600">{data.first_name} {data.last_name}</td></tr>
+                <tr><td style="padding:8px 0;color:#666">Email</td><td style="padding:8px 0">{data.email}</td></tr>
+                <tr><td style="padding:8px 0;color:#666">Airline</td><td style="padding:8px 0">{data.airline or '—'}</td></tr>
+                <tr><td style="padding:8px 0;color:#666">Flight</td><td style="padding:8px 0">{data.flight_number or '—'}</td></tr>
+                <tr><td style="padding:8px 0;color:#666">Refund est.</td><td style="padding:8px 0;color:#18a362;font-weight:700">${data.estimated_refund or '—'}</td></tr>
+                <tr><td style="padding:8px 0;color:#666">Confidence</td><td style="padding:8px 0">{round((data.confidence_score or 0) * 100)}%</td></tr>
+                <tr><td style="padding:8px 0;color:#666">Accepted rebooking</td><td style="padding:8px 0">{data.accepted_rebooking}</td></tr>
+                <tr><td style="padding:8px 0;color:#666">Result state</td><td style="padding:8px 0">{data.result_state or '—'}</td></tr>
+              </table>
+              {"<div style='margin-top:20px;padding:16px;background:#f5f5f0;border-radius:8px;font-size:13px;color:#333'><strong>Original email:</strong><br><br>" + (data.original_email_text or '—')[:2000] + "</div>" if data.original_email_text else ""}
+            </div>"""
+            resend.Emails.send({
+                "from": os.environ.get("FROM_EMAIL", "FlightClaim <claims@flightclaim.today>"),
+                "to": [os.environ.get("OPERATOR_EMAIL", "claims@flightclaim.today")],
+                "subject": f"New claim: {data.first_name} {data.last_name} — {data.airline or 'Unknown airline'} — ${data.estimated_refund or '?'}",
+                "html": operator_html,
+            })
+            print(json.dumps({"event": "operator_alert_sent", "email": data.email}))
+        except Exception as e:
+            print(f"Operator alert error: {e}")
 
     if os.environ.get("SUPABASE_URL"):
         try:
