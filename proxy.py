@@ -424,6 +424,58 @@ async def add_win(amount: float, airline: str, key: str = ""):
     return {"message": f"Win added: ${amount} from {airline}"}
 
 
+# ── INBOUND EMAIL WEBHOOK ────────────────────────────────────────────────────
+
+@app.post("/inbound")
+async def inbound_email(request: Request):
+    """Receive inbound emails forwarded by Resend and forward to operator."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    try:
+        sender      = payload.get("from", "unknown")
+        subject     = payload.get("subject", "(no subject)")
+        text_body   = payload.get("text", "") or ""
+        html_body   = payload.get("html", "") or ""
+        to_addr     = payload.get("to", "")
+
+        print(json.dumps({
+            "event": "inbound_email_received",
+            "from": sender,
+            "subject": subject,
+            "to": to_addr,
+            "length": len(text_body),
+        }))
+
+        display_body = html_body if html_body else f"<pre style='font-family:sans-serif;white-space:pre-wrap'>{text_body[:4000]}</pre>"
+
+        forward_html = f"""
+        <div style="font-family:sans-serif;max-width:640px;margin:0 auto;padding:32px">
+          <h2 style="color:#18a362">Inbound reply received</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px">
+            <tr><td style="padding:6px 0;color:#666;width:80px">From</td><td style="padding:6px 0;font-weight:600">{sender}</td></tr>
+            <tr><td style="padding:6px 0;color:#666">To</td><td style="padding:6px 0">{to_addr}</td></tr>
+            <tr><td style="padding:6px 0;color:#666">Subject</td><td style="padding:6px 0">{subject}</td></tr>
+          </table>
+          <hr style="border:none;border-top:1px solid #e5e5e0;margin:0 0 24px">
+          {display_body}
+        </div>"""
+
+        resend.Emails.send({
+            "from": os.environ.get("FROM_EMAIL", "FlightClaim <claims@flightclaim.today>"),
+            "to": [os.environ.get("OPERATOR_EMAIL", "claims@flightclaim.today")],
+            "subject": f"Reply from {sender}: {subject}",
+            "html": forward_html,
+        })
+        print(json.dumps({"event": "inbound_forwarded", "from": sender}))
+    except Exception as e:
+        print(f"Inbound email error: {e}")
+
+    return {"ok": True}
+
+
 # ── HEALTH + SERVE HTML ───────────────────────────────────────────────────────
 
 @app.get("/health")
