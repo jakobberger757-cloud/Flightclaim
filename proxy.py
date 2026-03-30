@@ -435,18 +435,21 @@ async def inbound_email(request: Request):
         payload = {}
 
     try:
-        sender      = payload.get("from", "unknown")
-        subject     = payload.get("subject", "(no subject)")
-        text_body   = payload.get("text", "") or ""
-        html_body   = payload.get("html", "") or ""
-        to_addr     = payload.get("to", "")
+        # Resend inbound wraps data inside a "data" key
+        data_obj  = payload.get("data", payload)
+        sender    = data_obj.get("from", "") or payload.get("from", "")
+        subject   = data_obj.get("subject", "") or payload.get("subject", "") or "(no subject)"
+        text_body = data_obj.get("text", "") or payload.get("text", "") or ""
+        html_body = data_obj.get("html", "") or payload.get("html", "") or ""
+        to_addr   = data_obj.get("to", "") or payload.get("to", "")
 
         print(json.dumps({
             "event": "inbound_email_received",
             "from": sender,
             "subject": subject,
-            "to": to_addr,
-            "length": len(text_body),
+            "body_length": len(text_body),
+            "raw_keys": list(payload.keys()),
+            "timestamp": datetime.now().isoformat(),
         }))
 
         display_body = html_body if html_body else f"<pre style='font-family:sans-serif;white-space:pre-wrap'>{text_body[:4000]}</pre>"
