@@ -447,7 +447,7 @@ async def inbound_email(request: Request):
                 import httpx
                 api_key = os.environ.get("RESEND_API_KEY", "")
                 resp = httpx.get(
-                    f"https://api.resend.com/v1/emails/{email_id}",
+                    f"https://api.resend.com/v1/received-emails/{email_id}",
                     headers={"Authorization": f"Bearer {api_key}"},
                     timeout=10,
                 )
