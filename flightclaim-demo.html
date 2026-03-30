@@ -1041,6 +1041,7 @@ async function sendCapture(data) {
     flight_number: r.flight_number || null,
     accepted_rebooking: _acceptedRebooking || null,
     result_state,
+    original_email_text: document.getElementById('emailInput')?.value?.trim() || null,
   };
   try {
     await fetch('/capture-email', {
