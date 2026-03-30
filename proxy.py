@@ -439,21 +439,44 @@ async def inbound_email(request: Request):
         data_obj  = payload.get("data", payload)
         sender    = data_obj.get("from", "") or payload.get("from", "")
         subject   = data_obj.get("subject", "") or payload.get("subject", "") or "(no subject)"
-        text_body = data_obj.get("text", "") or data_obj.get("plain_text", "") or payload.get("text", "") or ""
-        html_body = data_obj.get("html", "") or data_obj.get("html_text", "") or payload.get("html", "") or ""
         to_addr   = data_obj.get("to", "") or payload.get("to", "")
+        email_id = data_obj.get("email_id", "")
+        email_body = ""
+        if email_id:
+            try:
+                import httpx
+                api_key = os.environ.get("RESEND_API_KEY", "")
+                resp = httpx.get(
+                    f"https://api.resend.com/emails/{email_id}",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    email_data = resp.json()
+                    email_body = email_data.get("text", "") or email_data.get("html", "") or ""
+                    email_body = email_body.strip()
+                    print(json.dumps({
+                        "event": "inbound_email_fetched",
+                        "email_id": email_id,
+                        "body_length": len(email_body),
+                        "timestamp": datetime.now().isoformat(),
+                    }))
+                else:
+                    print(f"Resend fetch failed: {resp.status_code} {resp.text}")
+            except Exception as e:
+                print(f"Resend fetch error: {e}")
 
         print(json.dumps({
             "event": "inbound_email_received",
             "from": sender,
             "subject": subject,
-            "body_length": len(text_body),
+            "body_length": len(email_body),
             "raw_keys": list(payload.keys()),
             "data_keys": list(data_obj.keys()) if isinstance(data_obj, dict) else [],
             "timestamp": datetime.now().isoformat(),
         }))
 
-        display_body = html_body if html_body else f"<pre style='font-family:sans-serif;white-space:pre-wrap'>{text_body[:4000]}</pre>"
+        display_body = f"<pre style='font-family:sans-serif;white-space:pre-wrap'>{email_body[:4000]}</pre>"
 
         forward_html = f"""
         <div style="font-family:sans-serif;max-width:640px;margin:0 auto;padding:32px">
