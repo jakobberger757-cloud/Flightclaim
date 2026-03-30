@@ -447,13 +447,18 @@ async def inbound_email(request: Request):
                 import httpx
                 api_key = os.environ.get("RESEND_API_KEY", "")
                 resp = httpx.get(
-                    f"https://api.resend.com/emails/{email_id}",
+                    f"https://api.resend.com/v1/emails/{email_id}",
                     headers={"Authorization": f"Bearer {api_key}"},
                     timeout=10,
                 )
                 if resp.status_code == 200:
                     email_data = resp.json()
-                    email_body = email_data.get("text", "") or email_data.get("html", "") or ""
+                    print(json.dumps({
+                        "event": "inbound_email_fetched_keys",
+                        "keys": list(email_data.keys()),
+                        "timestamp": datetime.now().isoformat(),
+                    }))
+                    email_body = email_data.get("text", "") or email_data.get("html", "") or email_data.get("plain_text", "") or ""
                     email_body = email_body.strip()
                     print(json.dumps({
                         "event": "inbound_email_fetched",
