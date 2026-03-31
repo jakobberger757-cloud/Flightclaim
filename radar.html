@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FlightClaim Radar</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0f0f;
+  --surface: #181818;
+  --surface-2: #222;
+  --border: #2a2a2a;
+  --ink: #efefed;
+  --ink-2: #888;
+  --ink-3: #555;
+  --green: #18a362;
+  --green-bg: rgba(24,163,98,.12);
+  --green-border: rgba(24,163,98,.28);
+  --amber: #f59e0b;
+  --amber-bg: rgba(245,158,11,.1);
+  --amber-border: rgba(245,158,11,.28);
+  --red: #e05252;
+  --red-bg: rgba(224,82,82,.1);
+  --red-border: rgba(224,82,82,.25);
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --r: 10px;
+}
+html { background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+body { max-width: 720px; margin: 0 auto; padding: 24px 16px 80px; }
+
+/* Typography */
+h1 { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.sub { font-size: 13px; color: var(--ink-2); margin-top: 4px; margin-bottom: 28px; }
+.sec-label {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 10px; display: block;
+}
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; margin-bottom: 14px;
+}
+
+/* Search links */
+.search-group { margin-bottom: 14px; }
+.search-group-label { font-size: 11px; color: var(--ink-3); margin-bottom: 6px; letter-spacing: .06em; text-transform: uppercase; }
+.search-links { display: flex; flex-direction: column; gap: 4px; }
+.sl {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 7px; padding: 11px 13px; text-decoration: none;
+  transition: border-color .12s; gap: 10px;
+}
+.sl:hover { border-color: #3a3a3a; }
+.sl:active { background: #2a2a2a; }
+.sl-left { flex: 1; min-width: 0; }
+.sl-q { font-size: 13px; color: var(--ink); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-note { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.sl-arr { color: var(--ink-3); font-size: 14px; flex-shrink: 0; }
+.hot { background: var(--green-bg); color: var(--green); font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 700; }
+
+/* Textarea */
+textarea {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--ink); font-family: var(--sans);
+  font-size: 14px; line-height: 1.65; padding: 13px; resize: vertical;
+  outline: none; min-height: 120px; -webkit-appearance: none;
+  transition: border-color .15s;
+}
+textarea:focus { border-color: var(--green); }
+textarea::placeholder { color: var(--ink-3); }
+
+/* Buttons */
+.btn {
+  display: block; width: 100%; padding: 14px; border-radius: 8px;
+  font-family: var(--sans); font-size: 15px; font-weight: 600;
+  cursor: pointer; border: none; transition: all .15s; text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:hover { background: #147a4d; }
+.btn-green:active { background: #117a49; }
+.btn-green:disabled { opacity: .35; cursor: not-allowed; }
+
+.btn-sm {
+  display: inline-block; width: auto; padding: 8px 14px;
+  font-size: 13px; font-weight: 500; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--ink-2); cursor: pointer; font-family: var(--sans);
+  transition: all .12s; -webkit-tap-highlight-color: transparent;
+}
+.btn-sm:hover { color: var(--ink); border-color: #3a3a3a; }
+.btn-sm.active { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.btn-sm.copied { color: var(--green); border-color: var(--green-border); }
+
+/* Loading */
+.loading { display: none; text-align: center; padding: 32px 20px; color: var(--ink-2); font-size: 14px; }
+.loading.on { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: var(--green); border-radius: 50%; animation: spin .65s linear infinite; margin-right: 8px; vertical-align: middle; }
+
+/* Results */
+.results { display: none; }
+.results.on { display: block; }
+
+/* Score hero */
+.score-hero {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 14px;
+}
+.score-num {
+  font-size: 48px; font-weight: 800; line-height: 1;
+  letter-spacing: -.03em; min-width: 56px;
+}
+.score-num.high { color: var(--green); }
+.score-num.med { color: var(--amber); }
+.score-num.low { color: var(--red); }
+.score-right { flex: 1; }
+.action-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  margin-bottom: 6px;
+}
+.badge-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.badge-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.badge-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.badge-gray { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--border); }
+
+.why-text { font-size: 14px; color: var(--ink-2); line-height: 1.65; }
+
+/* Meta row */
+.meta-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.meta-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.meta-label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+.meta-val { font-size: 13px; font-weight: 600; }
+.meta-val.green { color: var(--green); }
+.meta-val.amber { color: var(--amber); }
+.meta-val.red { color: var(--red); }
+.meta-sub { font-size: 11px; color: var(--ink-3); margin-top: 3px; line-height: 1.4; }
+
+/* Best next move */
+.next-move {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;
+  font-size: 13px; color: var(--ink); line-height: 1.5;
+}
+.next-move-label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+
+/* Stress test */
+.stress-grid { display: flex; flex-direction: column; gap: 6px; }
+.stress-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; }
+.stress-q { color: var(--ink-2); flex: 1; }
+.stress-val { font-weight: 600; flex-shrink: 0; font-size: 12px; }
+.sv-good { color: var(--green); }
+.sv-warn { color: var(--amber); }
+.sv-bad { color: var(--red); }
+
+/* Reply tabs */
+.tab-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+
+/* Reply card */
+.reply-card { margin-bottom: 12px; }
+.reply-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.reply-style-label { font-size: 11px; color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; }
+.reply-text-display {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 13px; font-size: 14px; color: var(--ink);
+  line-height: 1.7; white-space: pre-wrap; margin-bottom: 8px;
+}
+.reply-link-tag { font-size: 11px; color: var(--amber); margin-bottom: 6px; }
+
+/* Quick edit */
+.quick-edit-area {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--green-border);
+  border-radius: 8px; color: var(--ink); font-family: var(--sans);
+  font-size: 14px; line-height: 1.7; padding: 13px; resize: vertical;
+  outline: none; min-height: 100px; -webkit-appearance: none;
+}
+
+/* Checklist */
+.checklist { display: flex; flex-direction: column; gap: 8px; }
+.cl-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); }
+.cl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cl-green { background: var(--green); }
+.cl-amber { background: var(--amber); }
+.cl-red { background: var(--red); }
+
+/* Divider */
+hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+/* Mobile */
+@media (max-width: 500px) {
+  .meta-row { grid-template-columns: 1fr 1fr; }
+  .score-num { font-size: 40px; }
+}
+</style>
+</head>
+<body>
+
+<h1>⚡ FlightClaim Radar</h1>
+<p class="sub">Reddit opportunity triage · Internal operator tool</p>
+
+<!-- Search Links -->
+<div class="card">
+  <span class="sec-label">Live Reddit searches — open in new tab, sort by New</span>
+
+  <div class="search-group">
+    <div class="search-group-label">Airline subreddits</div>
+    <div class="search-links">
+      <a class="sl" href="https://www.reddit.com/r/unitedairlines/new/" target="_blank">
+        <div class="sl-left"><div class="sl-q">r/unitedairlines <span class="hot">🔥</span></div><div class="sl-note">Highest volume airline sub</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/r/delta/new/" target="_blank">
+        <div class="sl-left"><div class="sl-q">r/delta</div><div class="sl-note">Active, lots of cancellation posts</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/r/americanairlines/new/" target="_blank">
+        <div class="sl-left"><div class="sl-q">r/americanairlines</div><div class="sl-note">Good refund complaint volume</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/r/SouthwestAirlines/new/" target="_blank">
+        <div class="sl-left"><div class="sl-q">r/SouthwestAirlines</div><div class="sl-note">Post-meltdown trauma still active</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="search-group">
+    <div class="search-group-label">Travel subreddits</div>
+    <div class="search-links">
+      <a class="sl" href="https://www.reddit.com/r/travel/search/?q=flight+cancelled&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">r/travel — flight cancelled</div><div class="sl-note">Broad audience, lower moderation strictness</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/r/flights/search/?q=cancelled+refund&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">r/flights — cancelled + refund <span class="hot">🔥</span></div><div class="sl-note">High intent, refund-aware audience</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/r/awardtravel/search/?q=cancelled&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">r/awardtravel — cancelled</div><div class="sl-note">Sophisticated travelers, points-focused</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="search-group">
+    <div class="search-group-label">Cross-subreddit keyword searches <span class="hot">highest intent</span></div>
+    <div class="search-links">
+      <a class="sl" href="https://www.reddit.com/search/?q=%22voucher+instead+of+refund%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"voucher instead of refund" <span class="hot">🔥🔥</span></div><div class="sl-note">Best signal — they got screwed and know it</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/search/?q=%22flight+cancelled%22+%22what+am+I+owed%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"flight cancelled" + "what am I owed" <span class="hot">🔥🔥</span></div><div class="sl-note">Actively asking — highest conversion</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/search/?q=%22flight+canceled%22+%22what+am+I+owed%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"flight canceled" + "what am I owed"</div><div class="sl-note">American spelling variant</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/search/?q=%22flight+cancelled%22+%22refund%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"flight cancelled" + "refund" <span class="hot">🔥</span></div><div class="sl-note">High intent, refund on their mind</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/search/?q=%22airline+voucher%22+%22cash%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"airline voucher" + "cash"</div><div class="sl-note">Comparing voucher vs cash — perfect opening</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/search/?q=%22DOT+refund%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"DOT refund"</div><div class="sl-note">Already knows about DOT — educated user</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/search/?q=%22rebooked%22+%22refund%22+%22flight%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"rebooked" + "refund" + "flight"</div><div class="sl-note">Auto-rebooking confusion — great opening</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+      <a class="sl" href="https://www.reddit.com/search/?q=%22flight+delay%22+%22refund%22&sort=new" target="_blank">
+        <div class="sl-left"><div class="sl-q">"flight delay" + "refund"</div><div class="sl-note">Delay cases — lower conversion but real volume</div></div>
+        <span class="sl-arr">↗</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Paste & Analyze -->
+<div class="card">
+  <span class="sec-label">Paste Reddit post to analyze</span>
+  <textarea id="postInput" placeholder="Paste the full post title + body here. Include top comments if useful for context.
+
+Example:
+Title: United cancelled my flight and only offered a $200 voucher — is this legal?
+Body: Hey all, my flight from Newark to Chicago got cancelled this morning with 2 hours notice. United automatically rebooked me to a flight 8 hours later but I can't make that work. When I called they said all they could do was a $200 voucher but my ticket was $380. Is this actually legal? I thought they were supposed to refund me?"></textarea>
+  <button class="btn btn-green" id="analyzeBtn" onclick="analyze()" style="margin-top:10px">
+    Analyze this opportunity
+  </button>
+</div>
+
+<div class="loading" id="loading">
+  <span class="spinner"></span>Analyzing post and drafting replies...
+</div>
+
+<!-- Results -->
+<div class="results" id="results">
+
+  <!-- Score + Action -->
+  <div class="card">
+    <div class="score-hero">
+      <div class="score-num" id="scoreNum">—</div>
+      <div class="score-right">
+        <div class="action-badge" id="actionBadge">—</div>
+        <div class="why-text" id="whyText">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meta: Mod Risk / Conversion / Best Move -->
+  <div class="meta-row">
+    <div class="meta-item">
+      <div class="meta-label">Mod Risk</div>
+      <div class="meta-val" id="modRiskVal">—</div>
+      <div class="meta-sub" id="modRiskReason">—</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Conversion</div>
+      <div class="meta-val" id="convVal">—</div>
+      <div class="meta-sub" id="convReason">—</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Best Move</div>
+      <div class="meta-val" id="bestMoveVal" style="font-size:11px;line-height:1.4">—</div>
+    </div>
+  </div>
+
+  <!-- Stress Test -->
+  <div class="card">
+    <span class="sec-label">Reply strategy stress test</span>
+    <div class="stress-grid" id="stressGrid"></div>
+  </div>
+
+  <!-- Reply Drafts -->
+  <div class="card">
+    <span class="sec-label">Reply drafts</span>
+    <div class="tab-row" id="tabRow">
+      <button class="btn-sm active" onclick="showReply(0)">1 · Value only</button>
+      <button class="btn-sm" onclick="showReply(1)">2 · Soft mention</button>
+      <button class="btn-sm" onclick="showReply(2)">3 · Link if earned</button>
+    </div>
+
+    <div id="replyDisplay">
+      <div class="reply-header">
+        <span class="reply-style-label" id="replyStyleLabel">—</span>
+        <button class="btn-sm" id="copyDraftBtn" onclick="copyDraft()">Copy</button>
+      </div>
+      <div id="replyLinkTag" class="reply-link-tag" style="display:none"></div>
+      <div class="reply-text-display" id="replyTextDisplay">—</div>
+    </div>
+
+    <hr>
+    <div style="margin-bottom:8px;font-size:12px;color:var(--ink-3)">Quick edit before posting</div>
+    <textarea class="quick-edit-area" id="quickEdit" placeholder="Edit your chosen reply here before copying..."></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button class="btn-sm" onclick="copyFinal()">Copy final reply</button>
+      <button class="btn-sm" id="copyFinalBtn" style="display:none">✓ Copied</button>
+    </div>
+  </div>
+
+  <!-- Reply Checklist -->
+  <div class="card">
+    <span class="sec-label">Pre-post checklist</span>
+    <div class="checklist" id="checklist"></div>
+  </div>
+
+</div>
+
+<script>
+// Get operator key from URL param — never hardcoded
+const _params = new URLSearchParams(window.location.search);
+const _opKey = _params.get('key') || '';
+
+let _replies = [];
+let _activeReply = 0;
+
+async function analyze() {
+  const post = document.getElementById('postInput').value.trim();
+  if (!post || post.length < 20) {
+    document.getElementById('postInput').focus();
+    return;
+  }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('loading').classList.add('on');
+  document.getElementById('results').classList.remove('on');
+
+  try {
+    const res = await fetch('/radar-analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post, operator_key: _opKey }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Analysis failed');
+    }
+
+    const data = await res.json();
+    render(data);
+  } catch(e) {
+    alert(e.message || 'Something went wrong. Check your key and try again.');
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('loading').classList.remove('on');
+  }
+}
+
+function render(d) {
+  // Score
+  const score = d.score || 0;
+  const scoreEl = document.getElementById('scoreNum');
+  scoreEl.textContent = score;
+  scoreEl.className = 'score-num ' + (score >= 7 ? 'high' : score >= 5 ? 'med' : 'low');
+
+  // Action badge
+  const action = d.recommended_action || '—';
+  const badge = document.getElementById('actionBadge');
+  badge.textContent = action;
+  badge.className = 'action-badge ' + (
+    action.includes('Reply now') ? 'badge-green' :
+    action.includes('Wait') ? 'badge-amber' : 'badge-red'
+  );
+
+  document.getElementById('whyText').textContent = d.why || '—';
+
+  // Meta
+  const modRisk = d.mod_risk || '—';
+  const modEl = document.getElementById('modRiskVal');
+  modEl.textContent = modRisk;
+  modEl.className = 'meta-val ' + (modRisk === 'Low' ? 'green' : modRisk === 'Medium' ? 'amber' : 'red');
+  document.getElementById('modRiskReason').textContent = d.mod_risk_reason || '';
+
+  const conv = d.conversion_likelihood || '—';
+  const convEl = document.getElementById('convVal');
+  convEl.textContent = conv;
+  convEl.className = 'meta-val ' + (conv === 'High' ? 'green' : conv === 'Medium' ? 'amber' : 'red');
+  document.getElementById('convReason').textContent = d.conversion_reason || '';
+
+  document.getElementById('bestMoveVal').textContent = d.best_next_move || '—';
+
+  // Stress test
+  const st = d.stress_test || {};
+  const stressItems = [
+    { q: 'Spammy risk', v: st.spammy_risk || '—', type: 'text' },
+    { q: 'Would a link hurt trust?', v: st.link_hurts_trust, type: 'bool', invert: true },
+    { q: 'Better as value only?', v: st.better_as_value_only, type: 'bool', neutral: true },
+    { q: 'OP likely to respond?', v: st.op_likely_to_respond, type: 'bool' },
+    { q: 'Enough context to reply?', v: st.enough_context, type: 'bool' },
+    { q: 'Link earned or unearned?', v: st.link_earned_or_unearned || '—', type: 'text' },
+    { q: 'Non-US risk', v: st.non_us_risk || '—', type: 'risk' },
+  ];
+
+  document.getElementById('stressGrid').innerHTML = stressItems.map(item => {
+    let valHtml = '';
+    if (item.type === 'bool') {
+      const good = item.invert ? !item.v : item.v;
+      const cls = item.neutral ? 'sv-warn' : (good ? 'sv-good' : 'sv-bad');
+      valHtml = `<span class="stress-val ${cls}">${item.v ? 'Yes' : 'No'}</span>`;
+    } else if (item.type === 'risk') {
+      const cls = item.v === 'Low' ? 'sv-good' : item.v === 'Medium' ? 'sv-warn' : 'sv-bad';
+      valHtml = `<span class="stress-val ${cls}">${item.v}</span>`;
+    } else {
+      valHtml = `<span class="stress-val" style="color:var(--ink-2)">${item.v}</span>`;
+    }
+    return `<div class="stress-item"><span class="stress-q">${item.q}</span>${valHtml}</div>`;
+  }).join('');
+
+  // Replies
+  _replies = [d.reply_1, d.reply_2, d.reply_3].filter(Boolean);
+  _activeReply = 0;
+  showReply(0);
+
+  // Checklist
+  const cl = d.checklist || {};
+  const clItems = [
+    { label: 'Sounds human', val: cl.sounds_human },
+    { label: 'Appropriate length', val: cl.appropriate_length },
+    { label: 'Value before any mention', val: cl.value_before_mention },
+    { label: 'Link is earned (if used)', val: cl.link_earned },
+    { label: 'No business interest visible', val: cl.no_business_interest_visible },
+    { label: 'Appropriate for subreddit', val: cl.subreddit_appropriate },
+    { label: 'Would you upvote this?', val: cl.would_upvote },
+  ];
+
+  document.getElementById('checklist').innerHTML = clItems.map(item => {
+    const cls = item.val === true ? 'cl-green' : item.val === false ? 'cl-red' : 'cl-amber';
+    return `<div class="cl-item"><div class="cl-dot ${cls}"></div><span>${item.label}</span></div>`;
+  }).join('');
+
+  document.getElementById('results').classList.add('on');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showReply(idx) {
+  _activeReply = idx;
+  const r = _replies[idx];
+  if (!r) return;
+
+  // Update tabs
+  document.querySelectorAll('#tabRow .btn-sm').forEach((btn, i) => {
+    btn.classList.toggle('active', i === idx);
+  });
+
+  document.getElementById('replyStyleLabel').textContent = r.style || '';
+
+  // Link tag for reply 3
+  const linkTag = document.getElementById('replyLinkTag');
+  if (idx === 2 && r.link_included !== undefined) {
+    linkTag.style.display = 'block';
+    linkTag.textContent = r.link_included
+      ? '⚠ Link included — use judgment'
+      : '✓ No link — ' + (r.reason || 'safer approach chosen');
+  } else {
+    linkTag.style.display = 'none';
+  }
+
+  document.getElementById('replyTextDisplay').textContent = r.text || '—';
+  document.getElementById('quickEdit').value = r.text || '';
+}
+
+function copyDraft() {
+  const r = _replies[_activeReply];
+  if (!r) return;
+  navigator.clipboard?.writeText(r.text || '').then(() => {
+    const btn = document.getElementById('copyDraftBtn');
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyFinal() {
+  const text = document.getElementById('quickEdit').value.trim();
+  if (!text) return;
+  navigator.clipboard?.writeText(text).then(() => {
+    const btn = document.querySelector('[onclick="copyFinal()"]');
+    if (btn) { btn.textContent = '✓ Copied!'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = 'Copy final reply'; btn.classList.remove('copied'); }, 2000); }
+  });
+}
+</script>
+</body>
+</html>
