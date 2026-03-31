@@ -143,6 +143,7 @@ class EmailCaptureRequest(BaseModel):
     result_state: Optional[str] = None
     original_email_text: Optional[str] = None
     subject_line: Optional[str] = None
+    free_text_description: Optional[str] = None
 
 
 class EmailResultRequest(BaseModel):
@@ -363,7 +364,7 @@ async def capture_email(data: EmailCaptureRequest, background_tasks: BackgroundT
         "first_name": data.first_name,
         "last_name": data.last_name,
         "result_state": data.result_state,
-        "original_email_text": data.original_email_text,
+        "original_email_text": data.original_email_text or data.free_text_description or None,
         "subject_line": data.subject_line,
         "captured_at": datetime.now().isoformat(),
     }
@@ -381,6 +382,29 @@ async def capture_email(data: EmailCaptureRequest, background_tasks: BackgroundT
             background_tasks.add_task(_send_result_email, data.email, _result_dict, _refund, _you_keep, data.source)
         except Exception as e:
             print(f"Transactional email error: {e}")
+
+    if data.source == "something_else":
+        try:
+            desc_preview = (data.free_text_description or "")[:200]
+            resend.Emails.send({
+                "from": os.environ.get("FROM_EMAIL", "FlightClaim <claims@flightclaim.today>"),
+                "to": [os.environ.get("OPERATOR_EMAIL", "claims@flightclaim.today")],
+                "subject": f"Something else intake: {desc_preview[:60]}... — {data.email}",
+                "html": f"""
+<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px">
+  <h2 style="color:#f59e0b">Something else — needs review</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <tr><td style="padding:8px 0;color:#666;width:100px">Email</td><td style="padding:8px 0;font-weight:600">{data.email}</td></tr>
+    <tr><td style="padding:8px 0;color:#666">Name</td><td style="padding:8px 0">{data.first_name or '—'}</td></tr>
+    <tr><td style="padding:8px 0;color:#666">Session</td><td style="padding:8px 0">{data.session_id or '—'}</td></tr>
+  </table>
+  <div style="margin-top:20px;padding:16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:14px;color:#333;line-height:1.7">
+    <strong>Their description:</strong><br><br>{data.free_text_description or '—'}
+  </div>
+</div>""",
+            })
+        except Exception as e:
+            print(f"Something else alert error: {e}")
 
     if data.source == "claim_form_submitted":
         try:

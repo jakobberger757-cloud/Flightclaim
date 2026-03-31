@@ -404,6 +404,25 @@ Not your booking confirmation — paste the cancellation or delay notice."></tex
         <strong>You pay $0 unless we recover your refund.</strong><br>
         No account required. Free to check.
       </div>
+
+      <div style="text-align:center;margin-top:14px">
+        <button class="ghost" id="somethingElseToggleA" onclick="toggleSomethingElse('A')">
+          Different issue? Describe your situation →
+        </button>
+      </div>
+      <div id="somethingElseFormA" style="display:none;margin-top:12px">
+        <textarea id="seDescA" style="width:100%;min-height:100px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.65;padding:13px;resize:vertical;outline:none;transition:border-color .15s" placeholder="Briefly describe what happened — e.g. seat issue, involuntary downgrade, missed connection, lost baggage, confusing airline response, etc."></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="seEmailA" type="email" placeholder="Your email (required)" style="flex:1;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--ink);font-family:var(--sans);font-size:13px;outline:none;transition:border-color .15s">
+          <input id="seNameA" type="text" placeholder="First name (optional)" style="width:140px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--ink);font-family:var(--sans);font-size:13px;outline:none;transition:border-color .15s">
+        </div>
+        <button onclick="submitSomethingElse('A')" style="width:100%;margin-top:8px;padding:13px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;transition:background .15s">
+          Submit for review
+        </button>
+        <div id="seConfirmA" style="display:none;margin-top:8px;font-size:13px;color:var(--green);text-align:center">
+          ✓ Received — we'll review your situation and follow up if we can help.
+        </div>
+      </div>
     </div>
 
     <!-- Result panel -->
@@ -893,6 +912,21 @@ function renderActions(r, pct) {
         </div>
         <div id="naCaptureConfirm" style="display:none;font-size:13px;color:var(--green);padding:8px 0">✓ Sent.</div>
       </div>
+      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px">Have a different issue with this flight?</div>
+        <div style="font-size:12px;color:var(--ink-3);margin-bottom:10px">Seat problem, downgrade, missed connection, or something else? Describe it — we'll review for free.</div>
+        <textarea id="seDescB" style="width:100%;min-height:90px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.65;padding:13px;resize:vertical;outline:none;transition:border-color .15s" placeholder="Briefly describe what happened..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="seEmailB" type="email" placeholder="Your email (required)" style="flex:1;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--ink);font-family:var(--sans);font-size:13px;outline:none;transition:border-color .15s">
+          <input id="seNameB" type="text" placeholder="First name (optional)" style="width:140px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--ink);font-family:var(--sans);font-size:13px;outline:none;transition:border-color .15s">
+        </div>
+        <button onclick="submitSomethingElse('B')" style="width:100%;margin-top:8px;padding:13px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;transition:background .15s">
+          Submit for review
+        </button>
+        <div id="seConfirmB" style="display:none;margin-top:8px;font-size:13px;color:var(--green);text-align:center">
+          ✓ Received — we'll review your situation and follow up if we can help.
+        </div>
+      </div>
       <div style="margin-top:12px;text-align:center">
         <button class="ghost" onclick="resetForNewFlight()">Check another flight →</button>
       </div>`;
@@ -1177,6 +1211,60 @@ async function submitClaim() {
         })
     });
   } catch(e) {}
+}
+
+function toggleSomethingElse(variant) {
+  const form = document.getElementById('somethingElseForm' + variant);
+  if (!form) return;
+  const isOpen = form.style.display !== 'none';
+  form.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) setTimeout(() => document.getElementById('seDesc' + variant)?.focus(), 80);
+}
+
+async function submitSomethingElse(variant) {
+  const desc  = document.getElementById('seDesc'  + variant)?.value?.trim();
+  const email = document.getElementById('seEmail' + variant)?.value?.trim();
+  const name  = document.getElementById('seName'  + variant)?.value?.trim();
+  if (!desc || desc.length < 10) { document.getElementById('seDesc' + variant)?.focus(); return; }
+  if (!email?.includes('@'))     { document.getElementById('seEmail' + variant)?.focus(); return; }
+
+  // For variant B, append any pasted email text as additional context
+  const pastedEmail = variant === 'B' ? (document.getElementById('emailInput')?.value?.trim() || null) : null;
+  const fullDescription = pastedEmail ? desc + '\n\n---\nOriginal email pasted:\n' + pastedEmail : desc;
+
+  if (window.plausible) plausible('Something Else Submitted');
+
+  try {
+    await fetch('/capture-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        first_name: name || null,
+        source: 'something_else',
+        result_state: 'something_else_intake',
+        original_email_text: fullDescription,
+        session_id: _sessionId,
+        free_text_description: desc,
+      }),
+    });
+  } catch(e) {}
+
+  // Hide form fields, show confirmation
+  document.getElementById('seConfirm' + variant).style.display = 'block';
+  document.getElementById('seDesc'    + variant).style.display = 'none';
+  const emailInput = document.getElementById('seEmail' + variant);
+  if (emailInput) emailInput.style.display = 'none';
+  const nameInput = document.getElementById('seName' + variant);
+  if (nameInput) nameInput.style.display = 'none';
+
+  // Hide submit button — find by onclick attribute
+  const btns = document.querySelectorAll('button[onclick]');
+  btns.forEach(btn => {
+    if (btn.getAttribute('onclick') === `submitSomethingElse('${variant}')`) {
+      btn.style.display = 'none';
+    }
+  });
 }
 </script>
 </body>

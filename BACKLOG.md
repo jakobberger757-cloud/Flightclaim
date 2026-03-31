@@ -33,3 +33,5 @@ Items marked `[ ]` are pending. Mark `[x]` when done. Add new items with `log la
 - [x] Custom domain live (flightclaim.today)
 - [x] Terms + Privacy pages
 - [x] Supabase capture on all paths
+- [x] Something Else intake — Entry Point A (always visible in input panel)
+- [x] Something Else intake — Entry Point B (post not-eligible result)

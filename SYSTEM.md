@@ -71,6 +71,7 @@ Note: RLS is currently disabled — enable before scaling to production traffic.
 - `email_capture_medium_confidence` — medium confidence inline capture
 - `email_capture_not_eligible` — not eligible soft capture
 - `inbound_email` — forwarded email to claims@flightclaim.today
+- `something_else` — user submitted a free-form description of a non-standard issue
 
 ## Result States (analytics)
 - `eligible_high_confidence` (≥85%)
@@ -79,6 +80,7 @@ Note: RLS is currently disabled — enable before scaling to production traffic.
 - `wrong_email_type`
 - `not_eligible`
 - `inbound_needs_review` — forwarded email, needs manual review
+- `something_else_intake` — free-form issue submitted, pending manual operator review
 
 ## Inbound Email Flow
 1. User forwards airline email to claims@flightclaim.today
@@ -98,6 +100,7 @@ Note: RLS is currently disabled — enable before scaling to production traffic.
 - Inbound email forwarding (claims@flightclaim.today)
 - Custom domain + Cloudflare DNS
 - Terms + Privacy pages
+- Something Else intake (Entry Point A: always visible; Entry Point B: post not-eligible result)
 
 ## What Is NOT Live Yet
 - Automated claim filing (manual follow-up for now)
