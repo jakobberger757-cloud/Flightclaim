@@ -1033,6 +1033,7 @@ async function sendCapture(data) {
   else if (r.wrong_email_type || r.guidance) result_state = 'wrong_email_type';
   else if (!r.eligible) result_state = 'not_eligible';
 
+  const emailText = document.getElementById('emailInput')?.value?.trim() || null;
   const enriched = {
     ...data,
     session_id: _sessionId,
@@ -1041,7 +1042,7 @@ async function sendCapture(data) {
     flight_number: r.flight_number || null,
     accepted_rebooking: _acceptedRebooking || null,
     result_state,
-    original_email_text: document.getElementById('emailInput')?.value?.trim() || null,
+    original_email_text: data.original_email_text || emailText,
   };
   try {
     await fetch('/capture-email', {
