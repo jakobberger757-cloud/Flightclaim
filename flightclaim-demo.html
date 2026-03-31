@@ -1079,6 +1079,7 @@ function resetForNewFlight() {
 }
 
 async function emailMePrompt(refund, airline) {
+  const originalEmailText = document.getElementById('emailInput')?.value?.trim() || null;
   const email = prompt("Enter your email — we'll send you this result:");
   if (!email?.includes('@')) return;
 
@@ -1088,6 +1089,7 @@ async function emailMePrompt(refund, airline) {
     estimated_refund: refund || null,
     airline: airline || null,
     source: 'email_me_result',
+    original_email_text: originalEmailText,
   });
 
   const why = document.getElementById('whyText')?.textContent || '';
