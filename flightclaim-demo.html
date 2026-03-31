@@ -329,6 +329,10 @@ textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(24,163,9
   .email-capture-row { flex-direction: column; }
 }
 </style>
+
+<!-- Plausible Analytics -->
+<script async src="https://plausible.io/js/pa-e95TrdiOQh8N0D-gGFrFD.js"></script>
+<script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
 </head>
 <body>
 
@@ -609,6 +613,7 @@ function loadExample() {
 
 /* ─── Analyze ───────────────────────────────────── */
 async function analyze() {
+  plausible('Analyze Clicked');
   const text = document.getElementById('emailInput').value.trim();
   if (!text) { document.getElementById('emailInput').focus(); return; }
 
@@ -1023,6 +1028,7 @@ async function doNaCapture(airline) {
 }
 
 async function sendCapture(data) {
+  plausible('Email Captured');
   // Derive result_state for analytics
   const r = _lastResult || {};
   const pct = Math.round((r.confidence_score || 0) * 100);
@@ -1114,6 +1120,7 @@ async function emailMePrompt(refund, airline) {
 
 /* ─── Submit claim ──────────────────────────────── */
 async function submitClaim() {
+  plausible('Claim Submitted');
   const refund  = window._claimRefund  || null;
   const airline = window._claimAirline || '';
   const email   = document.getElementById('fEmail')?.value?.trim();
