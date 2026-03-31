@@ -341,6 +341,19 @@ async def email_result(request: EmailResultRequest, background_tasks: Background
         "timestamp": datetime.now().isoformat(),
     }))
 
+    if os.environ.get("SUPABASE_URL") and hasattr(request, 'original_email_text'):
+        try:
+            from supabase import create_client
+            db = create_client(
+                os.environ.get("SUPABASE_URL"),
+                os.environ.get("SUPABASE_SERVICE_KEY", "")
+            )
+            db.table("email_captures").update({
+                "original_email_text": request.original_email_text
+            }).eq("email", request.email).eq("source", "email_me_result").is_("original_email_text", "null").execute()
+        except Exception as e:
+            print(f"email-result supabase update error: {e}")
+
     return {"message": f"Result sent to {request.email}"}
 
 
