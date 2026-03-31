@@ -149,6 +149,7 @@ class EmailResultRequest(BaseModel):
     email: EmailStr
     result: dict
     session_id: Optional[str] = None
+    source: Optional[str] = "email_me_result"
 
 
 # ── ROUTES ────────────────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ async def analyze_email(request: AnalyzeRequest, http_request: Request):
 # ── 2. EMAIL CAPTURE ──────────────────────────────────────────────────────────
 
 @app.post("/capture-email")
-async def capture_email(data: EmailCaptureRequest):
+async def capture_email(data: EmailCaptureRequest, background_tasks: BackgroundTasks):
     """Non-converter email capture. Your retargeting list."""
     capture = {
         "email": data.email,
@@ -268,6 +269,18 @@ async def capture_email(data: EmailCaptureRequest):
     }
     email_captures.append(capture)
     print(json.dumps({"event": "email_captured", **capture}))
+
+    if data.source in ("claim_form_submitted", "remind_later_high_confidence") and data.estimated_refund:
+        try:
+            _refund = data.estimated_refund
+            _you_keep = round(_refund * 0.80)
+            _result_dict = {
+                "airline": data.airline or "your airline",
+                "reason": f"Based on your {data.airline or 'airline'} cancellation or delay, you appear eligible for a cash refund under DOT regulations.",
+            }
+            background_tasks.add_task(_send_result_email, data.email, _result_dict, _refund, _you_keep, data.source)
+        except Exception as e:
+            print(f"Transactional email error: {e}")
 
     if data.source == "claim_form_submitted":
         try:
@@ -332,7 +345,7 @@ async def email_result(request: EmailResultRequest, background_tasks: Background
     refund = result.get("estimated_refund_min") or 0
     you_keep = result.get("user_keeps_estimate") or round(refund * 0.80)
 
-    background_tasks.add_task(_send_result_email, request.email, result, refund, you_keep)
+    background_tasks.add_task(_send_result_email, request.email, result, refund, you_keep, request.source or "email_me_result")
 
     print(json.dumps({
         "event": "result_email_requested",
@@ -357,47 +370,98 @@ async def email_result(request: EmailResultRequest, background_tasks: Background
     return {"message": f"Result sent to {request.email}"}
 
 
-async def _send_result_email(email: str, result: dict, refund: float, you_keep: float):
-    print(f"EMAIL TASK START: sending to {email}")
+async def _send_result_email(email: str, result: dict, refund: float, you_keep: float, source: str = "email_me_result"):
+    print(f"EMAIL TASK START: sending to {email}, source={source}")
     print("RESEND KEY PRESENT:", bool(os.environ.get("RESEND_API_KEY")))
 
     airline = result.get("airline", "the airline")
-    flight = result.get("flight_number", "your flight")
     reason = result.get("reason", "")
-    app_url = os.environ.get("FRONTEND_URL", "https://flightclaim-production.up.railway.app/")
+    from_email = os.environ.get("FROM_EMAIL", "FlightClaim <claims@flightclaim.today>")
 
     if refund is None:
         print(f"EMAIL TASK SKIPPED: refund was None")
         return
 
-    html = f"""
-    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#fff">
-      <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">Estimated refund: ${refund:.0f}</h1>
-      <p style="color:#666;margin-bottom:20px">{airline} · {flight}</p>
+    reason_block = f"""
       <div style="background:#f5f5f0;border-radius:8px;padding:16px;margin-bottom:20px">
         <p style="color:#333;font-size:14px;line-height:1.6;margin:0">{reason}</p>
-      </div>
-      <div style="text-align:center;background:#0a0a0a;border-radius:8px;padding:20px;margin-bottom:20px">
-        <div style="color:#888;font-size:11px;letter-spacing:0.1em">YOU KEEP</div>
-        <div style="color:#00e676;font-size:36px;font-weight:800">${you_keep:.0f}</div>
-        <div style="color:#666;font-size:12px">after our 20% fee</div>
-      </div>
-      <a href="{app_url}" style="display:block;text-align:center;padding:16px;
-         background:#00e676;color:#000;border-radius:8px;font-weight:800;
-         text-decoration:none;font-size:16px">
-        Review My Claim →
-      </a>
-      <p style="color:#999;font-size:12px;text-align:center;margin-top:16px">
-        You pay $0 unless we recover your money.
-      </p>
-    </div>"""
+      </div>"""
+
+    keep_block = f"""
+      <div style="background:#f9f9f7;border:1px solid #e5e5e0;border-radius:8px;padding:16px;margin-bottom:20px;text-align:center">
+        <div style="color:#888;font-size:11px;letter-spacing:0.1em;margin-bottom:4px">YOU KEEP</div>
+        <div style="color:#18a362;font-size:32px;font-weight:800">${you_keep:.0f}</div>
+        <div style="color:#999;font-size:12px">after our 20% fee · $0 if nothing recovered</div>
+      </div>"""
+
+    if source == "claim_form_submitted":
+        subject = f"We've received your claim — ${refund:.0f}"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#fff">
+          <h1 style="font-size:22px;font-weight:800;margin-bottom:4px;color:#0d0d0c">We've received your claim.</h1>
+          <p style="color:#666;font-size:14px;margin-bottom:20px">{airline}</p>
+          <div style="background:#edf8f2;border:1px solid #a8dfc0;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#117a49;margin-bottom:4px">Estimated refund</div>
+            <div style="font-size:28px;font-weight:800;color:#18a362">${refund:.0f}</div>
+          </div>
+          {reason_block}
+          <div style="border-top:1px solid #e5e5e0;padding-top:20px;margin-bottom:20px">
+            <p style="font-size:14px;font-weight:700;color:#0d0d0c;margin-bottom:8px">What happens next</p>
+            <p style="font-size:14px;color:#444;line-height:1.7;margin:0">We're reviewing your claim and will follow up shortly with next steps. You do not need to take any further action. If we need additional information, we will email you directly.</p>
+          </div>
+          {keep_block}
+          <p style="color:#999;font-size:12px;text-align:center;margin-top:8px">
+            FlightClaim is a claims assistance service, not a law firm. Results are not guaranteed.
+          </p>
+        </div>"""
+
+    elif source == "remind_later_high_confidence":
+        subject = f"Your refund estimate is saved — ${refund:.0f}"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#fff">
+          <h1 style="font-size:22px;font-weight:800;margin-bottom:4px;color:#0d0d0c">Your estimate is saved.</h1>
+          <p style="color:#666;font-size:14px;margin-bottom:20px">{airline}</p>
+          <div style="background:#edf8f2;border:1px solid #a8dfc0;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#117a49;margin-bottom:4px">Estimated refund</div>
+            <div style="font-size:28px;font-weight:800;color:#18a362">${refund:.0f}</div>
+          </div>
+          {reason_block}
+          <div style="border-top:1px solid #e5e5e0;padding-top:20px;margin-bottom:20px">
+            <p style="font-size:14px;color:#444;line-height:1.7;margin:0">You have not submitted a claim yet. When you're ready, simply reply to this email and we'll help you move forward.</p>
+          </div>
+          {keep_block}
+          <p style="color:#999;font-size:12px;text-align:center;margin-top:8px">
+            FlightClaim is a claims assistance service, not a law firm. Results are not guaranteed.
+          </p>
+        </div>"""
+
+    else:
+        subject = f"Your refund estimate: ${refund:.0f}"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#fff">
+          <h1 style="font-size:22px;font-weight:800;margin-bottom:4px;color:#0d0d0c">Here's your refund estimate.</h1>
+          <p style="color:#666;font-size:14px;margin-bottom:20px">{airline}</p>
+          <div style="background:#edf8f2;border:1px solid #a8dfc0;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#117a49;margin-bottom:4px">Estimated refund</div>
+            <div style="font-size:28px;font-weight:800;color:#18a362">${refund:.0f}</div>
+          </div>
+          {reason_block}
+          <div style="border-top:1px solid #e5e5e0;padding-top:20px;margin-bottom:20px">
+            <p style="font-size:14px;color:#444;line-height:1.7;margin:0">This is an estimate based on the information provided. If you'd like help filing your claim, just reply to this email and we'll take care of it.</p>
+          </div>
+          {keep_block}
+          <p style="color:#999;font-size:12px;text-align:center;margin-top:8px">
+            FlightClaim is a claims assistance service, not a law firm. Results are not guaranteed.
+          </p>
+        </div>"""
 
     try:
-        print("EMAIL TASK: calling Resend")
+        print(f"EMAIL TASK: calling Resend, subject={subject}")
         response = resend.Emails.send({
-            "from": os.environ.get("FROM_EMAIL", "FlightClaim <onboarding@resend.dev>"),
+            "from": from_email,
             "to": [email],
-            "subject": f"Your {airline} refund estimate: ${refund:.0f}",
+            "reply_to": [from_email],
+            "subject": subject,
             "html": html,
         })
         print(f"EMAIL TASK SUCCESS: {response}")
