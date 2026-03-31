@@ -504,6 +504,25 @@ async def inbound_email(request: Request):
             "html": forward_html,
         })
         print(json.dumps({"event": "inbound_forwarded", "from": sender}))
+
+        if os.environ.get("SUPABASE_URL"):
+            try:
+                from supabase import create_client
+                db = create_client(
+                    os.environ.get("SUPABASE_URL"),
+                    os.environ.get("SUPABASE_SERVICE_KEY", "")
+                )
+                db.table("email_captures").insert({
+                    "email": sender,
+                    "source": "inbound_email",
+                    "subject_line": subject,
+                    "original_email_text": email_body[:10000] if email_body else None,
+                    "result_state": "inbound_needs_review",
+                }).execute()
+                print(json.dumps({"event": "inbound_supabase_saved", "from": sender}))
+            except Exception as e:
+                print(f"Inbound Supabase error: {e}")
+
     except Exception as e:
         print(f"Inbound email error: {e}")
 
